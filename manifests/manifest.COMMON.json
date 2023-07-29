@@ -26,7 +26,13 @@
       "suggested_key": {
         "default": "Alt+Shift+L"
       },
-      "description": "Open a popup to bookmark current page."
+      "description": "Open popup to bookmark current page"
+    },
+    "_execute_sidebar_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L"
+      },
+      "description": "Open sidebar to bookmark current page"
     }
   },
   "options_ui": {
