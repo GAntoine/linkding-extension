@@ -149,7 +149,9 @@
   <div class="title-actions">
     <a
       class="title-action"
-      href={`${configuration?.baseUrl}/bookmarks`}
+      href={`${configuration?.baseUrl}/bookmarks${
+        bookmarkId ? `/${bookmarkId}/edit` : ""
+      }`}
       target="_blank"
       role="button"
       tabindex="0"
