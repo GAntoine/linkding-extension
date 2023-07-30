@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import {getConfiguration, saveConfiguration} from "./configuration";
   import {LinkdingApi} from "./linkding";
 
@@ -27,7 +27,7 @@
       precacheEnabled,
     };
 
-    const testResult = await new LinkdingApi(config).testConnection(config);
+    const testResult = await new LinkdingApi(config).testConnection();
 
     if (testResult) {
       await saveConfiguration(config);

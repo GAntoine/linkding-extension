@@ -1,16 +1,38 @@
 import { browserAPI } from "./browser";
+import type { Config } from "./configuration";
+
+export type Bookmark = {
+  id: number;
+  url: string;
+  title: string;
+  description: string;
+  notes: string;
+  tag_names: string[];
+  unread: boolean;
+  date_added: string;
+  website_title: string;
+};
+
+export type Tag = {
+  id: number;
+  name: string;
+};
+
+type ApiOptions = {
+  limit?: number;
+};
 
 export class LinkdingApi {
-  constructor(configuration) {
+  configuration: Config;
+
+  constructor(configuration: Config) {
     this.configuration = configuration;
   }
 
-  async getBookmark(bookmarkId) {
-    const configuration = this.configuration;
-
-    return fetch(`${configuration.baseUrl}/api/bookmarks/${bookmarkId}/`, {
+  async getBookmark(bookmarkId: number): Promise<Bookmark> {
+    return fetch(`${this.configuration.baseUrl}/api/bookmarks/${bookmarkId}/`, {
       headers: {
-        Authorization: `Token ${configuration.token}`,
+        Authorization: `Token ${this.configuration.token}`,
       },
     }).then((response) => {
       if (response.status === 200) {
@@ -22,13 +44,11 @@ export class LinkdingApi {
     });
   }
 
-  async saveBookmark(bookmark) {
-    const configuration = this.configuration;
-
-    return fetch(`${configuration.baseUrl}/api/bookmarks/`, {
+  async saveBookmark(bookmark: Partial<Bookmark>): Promise<Bookmark> {
+    return fetch(`${this.configuration.baseUrl}/api/bookmarks/`, {
       method: "POST",
       headers: {
-        Authorization: `Token ${configuration.token}`,
+        Authorization: `Token ${this.configuration.token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(bookmark),
@@ -47,13 +67,11 @@ export class LinkdingApi {
     });
   }
 
-  async deleteBookmark(bookmarkId) {
-    const configuration = this.configuration;
-
-    return fetch(`${configuration.baseUrl}/api/bookmarks/${bookmarkId}/`, {
+  async deleteBookmark(bookmarkId: number): Promise<boolean> {
+    return fetch(`${this.configuration.baseUrl}/api/bookmarks/${bookmarkId}/`, {
       method: "DELETE",
       headers: {
-        Authorization: `Token ${configuration.token}`,
+        Authorization: `Token ${this.configuration.token}`,
       },
     }).then((response) => {
       if (response.status === 204) {
@@ -63,12 +81,10 @@ export class LinkdingApi {
     });
   }
 
-  async getTags() {
-    const configuration = this.configuration;
-
-    return fetch(`${configuration.baseUrl}/api/tags/?limit=1000`, {
+  async getTags(): Promise<Tag[]> {
+    return fetch(`${this.configuration.baseUrl}/api/tags/?limit=1000`, {
       headers: {
-        Authorization: `Token ${configuration.token}`,
+        Authorization: `Token ${this.configuration.token}`,
       },
     }).then((response) => {
       if (response.status === 200) {
@@ -78,16 +94,15 @@ export class LinkdingApi {
     });
   }
 
-  async search(text, options) {
-    const configuration = this.configuration;
+  async search(text: string, options: ApiOptions): Promise<Bookmark[]> {
     const q = encodeURIComponent(text);
     const limit = options.limit || 100;
 
     return fetch(
-      `${configuration.baseUrl}/api/bookmarks/?q=${q}&limit=${limit}`,
+      `${this.configuration.baseUrl}/api/bookmarks/?q=${q}&limit=${limit}`,
       {
         headers: {
-          Authorization: `Token ${configuration.token}`,
+          Authorization: `Token ${this.configuration.token}`,
         },
       }
     ).then((response) => {
@@ -100,15 +115,17 @@ export class LinkdingApi {
     });
   }
 
-  async check(url) {
-    const configuration = this.configuration;
+  async check(url: string): Promise<{ bookmark: Bookmark }> {
     url = encodeURIComponent(url);
 
-    return fetch(`${configuration.baseUrl}/api/bookmarks/check/?url=${url}`, {
-      headers: {
-        Authorization: `Token ${configuration.token}`,
-      },
-    }).then((response) => {
+    return fetch(
+      `${this.configuration.baseUrl}/api/bookmarks/check/?url=${url}`,
+      {
+        headers: {
+          Authorization: `Token ${this.configuration.token}`,
+        },
+      }
+    ).then((response) => {
       if (response.status === 200) {
         return response.json();
       }
@@ -119,17 +136,15 @@ export class LinkdingApi {
   }
 
   async testConnection() {
-    const configuration = this.configuration;
-
     // Request permission to access the page that runs Linkding
     const granted = await browserAPI.permissions.request({
-      origins: [`${configuration.baseUrl}/*`],
+      origins: [`${this.configuration.baseUrl}/*`],
     });
 
     if (granted) {
-      return fetch(`${configuration.baseUrl}/api/bookmarks/?limit=1`, {
+      return fetch(`${this.configuration.baseUrl}/api/bookmarks/?limit=1`, {
         headers: {
-          Authorization: `Token ${configuration.token}`,
+          Authorization: `Token ${this.configuration.token}`,
         },
       })
         .then((response) => {
@@ -146,7 +161,7 @@ export class LinkdingApi {
     }
   }
 
-  async findBookmarkByUrl(url) {
+  async findBookmarkByUrl(url: string) {
     return this.search(url, { limit: 1 }).then((results) =>
       results && results.length > 0 ? results[0] : undefined
     );

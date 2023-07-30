@@ -1,60 +1,86 @@
-import svelte from 'rollup-plugin-svelte';
-import resolve from '@rollup/plugin-node-resolve';
-import terser from '@rollup/plugin-terser';
+import svelte from "rollup-plugin-svelte";
+import resolve from "@rollup/plugin-node-resolve";
+import terser from "@rollup/plugin-terser";
+import copy from "rollup-plugin-copy";
+import sveltePreprocess from "svelte-preprocess";
+import typescript from "@rollup/plugin-typescript";
 
 const production = !process.env.ROLLUP_WATCH;
 
 export default [
-	// Main bundle (browser action, options page)
-	{
-		input: 'src/index.js',
-		output: {
-			sourcemap: true,
-			format: 'iife',
-			name: 'linkding',
-			file: 'build/bundle.js'
-		},
-		plugins: [
-			svelte({
-				emitCss: false
-			}),
+  {
+    input: "src/index.ts",
+    output: [
+      {
+        sourcemap: true,
+        format: "iife",
+        name: "linkding",
+        file: "build/chrome/build/bundle.js",
+      },
+      {
+        sourcemap: true,
+        format: "iife",
+        name: "linkding",
+        file: "build/firefox/build/bundle.js",
+      },
+    ],
+    plugins: [
+      // Compile Svelte components
+      svelte({ emitCss: false, preprocess: sveltePreprocess() }),
 
-			// If you have external dependencies installed from
-			// npm, you'll most likely need these plugins. In
-			// some cases you'll need additional configuration
-			resolve({
-				browser: true,
-				dedupe: importee => importee === 'svelte' || importee.startsWith('svelte/')
-			}),
+      // Resolve bare module imports
+      resolve({
+        browser: true,
+        dedupe: (importee) =>
+          importee === "svelte" || importee.startsWith("svelte/"),
+      }),
 
-			// If we're building for production (npm run build
-			// instead of npm run dev), minify
-			production && terser()
-		],
-		watch: {
-			clearScreen: false
-		}
-	},
-	// Background bundle
-	{
-		input: 'src/background.js',
-		output: {
-			sourcemap: true,
-			format: 'iife',
-			file: 'build/background.js'
-		},
-		plugins: [
-			// If you have external dependencies installed from
-			// npm, you'll most likely need these plugins. In
-			// some cases you'll need additional configuration
-			resolve({ browser: true }),
+      // Minify if building for production
+      production && terser(),
 
-			// If we're building for production (npm run build
-			// instead of npm run dev), minify
-			production && terser()
-		],
-		watch: {
-			clearScreen: false
-		}
-	}
+      // Compile TypeScript files
+      typescript(),
+
+      // Copy static files to build directory
+      copy({
+        targets: [
+          {
+            src: ["icons", "options", "popup", "styles"],
+            dest: ["build/chrome", "build/firefox"],
+          },
+        ],
+      }),
+    ],
+    watch: {
+      clearScreen: false,
+    },
+  },
+  {
+    input: "src/background.ts",
+    output: [
+      {
+        sourcemap: true,
+        format: "iife",
+        file: "build/chrome/build/background.js",
+      },
+      {
+        sourcemap: true,
+        format: "iife",
+        file: "build/firefox/build/background.js",
+      },
+    ],
+    plugins: [
+      // Resolve bare module imports
+      resolve({ browser: true }),
+
+      // Minify if building for production
+      production && terser(),
+
+      // Compile TypeScript files
+      typescript(),
+    ],
+    watch: {
+      clearScreen: false,
+    },
+  },
 ];

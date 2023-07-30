@@ -1,5 +1,5 @@
-<script>
-  import TagAutocomplete from "./TagAutocomplete.svelte";
+<script lang="ts">
+  import TagAutocomplete from "./tagautocomplete.svelte";
   import {
     getCurrentTabInfo,
     openOptions,
@@ -8,9 +8,11 @@
     browserAPI,
   } from "./browser";
   import { loadTabMetadata, clearCachedTabMetadata } from "./cache";
+  import type { LinkdingApi } from "./linkding";
+  import type { Config } from "./configuration";
 
-  export let api;
-  export let configuration;
+  export let api: LinkdingApi;
+  export let configuration: Config;
 
   let url = "";
   let title = "";
@@ -22,8 +24,8 @@
   let unread = false;
   let saveState = "";
   let errorMessage = "";
-  let availableTagNames = [];
-  let bookmarkId = null;
+  let availableTagNames: string[] = [];
+  let bookmarkId: number | null = null;
   let editNotes = false;
 
   $: {
@@ -34,16 +36,17 @@
 
   async function init() {
     const tabInfo = await getCurrentTabInfo();
-    url = tabInfo.url;
 
     // Detect highlighted text
-    const highlightedText = await browserAPI.scripting.executeScript({
-      target: { tabId: tabInfo.id },
-      func: () => window.getSelection().toString(),
-    });
-    if (highlightedText?.[0]?.result) {
-      // If there is highlighted text, use it as the notes
-      notes = highlightedText[0].result;
+    if (tabInfo.id) {
+      const highlightedText = await browserAPI.scripting.executeScript({
+        target: { tabId: tabInfo.id },
+        func: () => window.getSelection()?.toString() ?? "",
+      });
+      if (highlightedText?.[0]?.result) {
+        // If there is highlighted text, use it as the notes
+        notes = highlightedText[0].result;
+      }
     }
 
     tags = configuration.default_tags;
@@ -102,12 +105,12 @@
       bookmarkId = newBookmark.id;
 
       const tabInfo = await getCurrentTabInfo();
-      setStarredBadge(tabInfo.id);
+      if (tabInfo.id) setStarredBadge(tabInfo.id);
 
       // Reset the success message after a few seconds
       window.setTimeout(() => {
         saveState = "";
-      }, 1750);
+      }, 1250);
     } catch (e) {
       saveState = "error";
       errorMessage = e.toString();
@@ -131,7 +134,7 @@
 
       bookmarkId = null;
       const tabInfo = await getCurrentTabInfo();
-      resetStarredBadge(tabInfo.id);
+      if (tabInfo.id) resetStarredBadge(tabInfo.id);
     } catch (e) {
       saveState = "error";
       errorMessage = e.toString();

@@ -5,25 +5,20 @@ import {
   resetStarredBadge,
 } from "./browser";
 import { loadTabMetadata, clearCachedTabMetadata } from "./cache";
-import { getConfiguration, isConfigurationComplete } from "./configuration";
+import { getConfiguration, isConfigurationComplete, type Config } from "./configuration";
 import { LinkdingApi } from "./linkding";
 
-let api = null;
-let configuration = null;
-let hasCompleteConfiguration = false;
+let api: LinkdingApi | null = null;
+let configuration: Config | null = null;
 
 async function initApi() {
-  if (api) {
-    return true;
-  }
+  if (api) return true;
 
   configuration = await getConfiguration();
-  hasCompleteConfiguration = isConfigurationComplete(configuration);
+  const configurationComplete = isConfigurationComplete(configuration);
 
-  if (hasCompleteConfiguration) {
+  if (configurationComplete) {
     api = new LinkdingApi(configuration);
-  } else {
-    api = null;
   }
 
   return api !== null;
@@ -60,7 +55,7 @@ browserAPI.omnibox.onInputChanged.addListener((text, suggest) => {
 });
 
 browserAPI.omnibox.onInputEntered.addListener((content, disposition) => {
-  if (!hasCompleteConfiguration || !content) {
+  if (!api || !configuration || !content) {
     return;
   }
 
@@ -86,22 +81,25 @@ browserAPI.omnibox.onInputEntered.addListener((content, disposition) => {
 
 browserAPI.tabs.onActivated.addListener(async () => {
   const tabInfo = await getCurrentTabInfo();
+  if (!tabInfo.url) return;
+
   await loadTabMetadata(tabInfo.url, true);
 });
 
-browserAPI.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+browserAPI.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
   // Only interested in URL changes
   // Ignore URL changes in non-active tabs
-  if (!changeInfo.url || !tab.active) {
-    return;
-  }
+  if (!changeInfo.url || !tab.active) return;
+  if (!tab.url) return;
 
   await loadTabMetadata(tab.url, true);
 });
 
 /* Context menu integration */
 
-async function saveToLinkding(info, tab) {
+async function saveToLinkding(info: chrome.contextMenus.OnClickData, tab: chrome.tabs.Tab | undefined) {
+  if (!info.linkUrl) return;
+
   const isReady = await initApi();
   if (!isReady) return;
 
@@ -122,7 +120,7 @@ async function saveToLinkding(info, tab) {
 
   const { description, title, url } = urlMetadata.metadata;
   const tagNames =
-    api.default_tags
+    configuration?.default_tags
       ?.split(" ")
       .map((tag) => tag.trim())
       .filter((tag) => !!tag) ?? [];
@@ -135,7 +133,7 @@ async function saveToLinkding(info, tab) {
   };
 
   try {
-    await api.saveBookmark(bookmark);
+    await api?.saveBookmark(bookmark);
     await clearCachedTabMetadata();
 
     browserAPI.notifications.create("linkding-bookmark-saved", {
@@ -163,11 +161,12 @@ browserAPI.contextMenus.onClicked.addListener(saveToLinkding);
 
 /* Dynamic badge */
 
-async function setDymamicBadge(tabId) {
+async function setDymamicBadge(tabId: number) {
   const badgeText = await browserAPI.action.getBadgeText({ tabId });
   const starred = badgeText === "★";
   
   const tab = await browserAPI.tabs.get(tabId);
+  if (!tab.url) return;
   const tabMetadata = await loadTabMetadata(tab.url);
 
   // Set badge if tab is bookmarked
@@ -179,7 +178,7 @@ async function setDymamicBadge(tabId) {
 
 // Set the badge when the tab is created
 browserAPI.tabs.onCreated.addListener(({ id }) => {
-  setDymamicBadge(id);
+  if (id) setDymamicBadge(id);
 });
 
 // Set the badge when the tab is updated

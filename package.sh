@@ -10,27 +10,25 @@ npm run build
 
 # Copy files to artifacts folder
 mkdir -p artifacts/firefox
-cp -r build icons options popup styles artifacts/firefox
 
 # Build manifest file for Firefox
-npm run merge firefox artifacts/firefox
+npm run merge firefox
 
 # Lint extension
-npx web-ext lint --source-dir artifacts/firefox
+npx web-ext lint --source-dir build/firefox
 
 # Build extension
-npx web-ext build --overwrite-dest --source-dir artifacts/firefox --artifacts-dir artifacts/firefox
+npx web-ext build --overwrite-dest --source-dir build/firefox --artifacts-dir artifacts/firefox
 
 ## CHROME
 
 # Copy files to artifacts folder
 mkdir -p artifacts/chrome
-cp -r build icons options popup styles artifacts/chrome
 
 # Build manifest file
-npm run merge chrome artifacts/chrome
+npm run merge chrome
 
 # Build extension
-npx web-ext build --overwrite-dest --source-dir artifacts/chrome --artifacts-dir artifacts/chrome
+npx web-ext build --overwrite-dest --source-dir build/chrome --artifacts-dir artifacts/chrome
 
 echo "✅ Done"

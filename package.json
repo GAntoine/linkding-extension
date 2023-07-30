@@ -16,8 +16,8 @@
   "scripts": {
     "dev": "rollup -c -w",
     "merge": "node ./manifests/merge.js",
-    "dev:chrome": "npm run merge chrome . && npm run dev",
-    "dev:firefox": "npm run merge firefox . && npm run dev",
+    "dev:chrome": "npm run merge chrome && npm run dev",
+    "dev:firefox": "npm run merge firefox && npm run dev",
     "build": "rollup -c",
     "package": "./package.sh"
   },
@@ -30,8 +30,15 @@
     "svelte": "^4.1.1"
   },
   "devDependencies": {
+    "@rollup/plugin-typescript": "^11.1.2",
+    "@tsconfig/svelte": "^5.0.0",
+    "@types/chrome": "^0.0.242",
     "node-jq": "^2.3.5",
     "prettier": "^3.0.0",
+    "rollup-plugin-copy": "^3.4.0",
+    "svelte-preprocess": "^5.0.4",
+    "tslib": "^2.6.1",
+    "typescript": "^5.1.6",
     "web-ext": "^7.6.2"
   }
 }

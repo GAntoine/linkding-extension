@@ -1,12 +1,16 @@
-<script>
+<script lang="ts">
   import Form from "./form.svelte";
   import Intro from "./intro.svelte";
-  import {getConfiguration, isConfigurationComplete} from "./configuration";
-  import {LinkdingApi} from "./linkding";
+  import {
+    getConfiguration,
+    isConfigurationComplete,
+    type Config,
+  } from "./configuration";
+  import { LinkdingApi } from "./linkding";
 
   let hasCompleteConfiguration = true;
-  let configuration;
-  let api;
+  let configuration: Config;
+  let api: LinkdingApi;
 
   async function init() {
     configuration = await getConfiguration();
@@ -19,15 +23,15 @@
   init();
 </script>
 
-<Form configuration="{configuration}" api="{api}"/>
+<Form {configuration} {api} />
 
 {#if !hasCompleteConfiguration}
   <div class="modal active" id="modal-id">
-    <div class="modal-overlay"></div>
+    <div class="modal-overlay" />
     <div class="modal-container">
       <div class="modal-body">
         <div class="content">
-          <Intro/>
+          <Intro />
         </div>
       </div>
     </div>

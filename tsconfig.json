@@ -1,0 +1,10 @@
+{
+	"compilerOptions": {
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"noImplicitReturns": true,
+	},
+	"extends": "@tsconfig/svelte/tsconfig.json",
+	"include": ["src/**/*"],
+  	"exclude": ["node_modules/*"]
+}

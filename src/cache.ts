@@ -1,10 +1,10 @@
 import { getStorageItem, setStorageItem } from "./browser";
 import { getConfiguration, isConfigurationComplete } from "./configuration";
-import { LinkdingApi } from "./linkding";
+import { LinkdingApi, type Bookmark } from "./linkding";
 
 const TAB_METADATA_CACHE_KEY = "ld_tab_metadata_cache";
 
-export async function loadTabMetadata(url, precacheRequest = false) {
+export async function loadTabMetadata(url: string, precacheRequest = false) {
   const configuration = await getConfiguration();
   const hasCompleteConfiguration = isConfigurationComplete(configuration);
 
@@ -35,8 +35,7 @@ export async function loadTabMetadata(url, precacheRequest = false) {
       console.error(e);
       return null;
     }
-  }
-  else {
+  } else {
     return null;
   }
 }
@@ -46,7 +45,9 @@ export async function getCachedTabMetadata() {
   return json ? JSON.parse(json) : null;
 }
 
-export async function cacheTabMetadata(tabMetadata) {
+export async function cacheTabMetadata(
+  tabMetadata: { bookmark: Bookmark } | null
+) {
   const json = JSON.stringify(tabMetadata);
   await setStorageItem(TAB_METADATA_CACHE_KEY, json);
 }

@@ -1,16 +1,16 @@
-<script>
+<script lang="ts">
   import { getCurrentWord, getCurrentWordBounds } from "./util";
 
-  export let id;
-  export let name;
-  export let value;
-  export let tags;
+  export let id: string;
+  export let name: string;
+  export let value: string;
+  export let tags: string[] = [];
 
   let isFocus = false;
   let isOpen = false;
-  let input = null;
+  let input: HTMLInputElement | null = null;
 
-  let suggestions = [];
+  let suggestions: string[] = [];
   let selectedIndex = 0;
 
   function handleFocus() {
@@ -22,13 +22,13 @@
     close();
   }
 
-  function handleInput(e) {
-    input = e.target;
+  function handleInput(e: { target: EventTarget | null }) {
+    if (!(e.target instanceof HTMLInputElement)) return;
 
+    input = e.target;
     const word = getCurrentWord(input);
 
     suggestions = word ? tags.filter((tag) => tag.indexOf(word) === 0) : [];
-
     if (word && suggestions.length > 0) {
       open();
     } else {
@@ -36,7 +36,7 @@
     }
   }
 
-  function handleKeyDown(e) {
+  function handleKeyDown(e: KeyboardEvent) {
     if (isOpen && (e.keyCode === 13 || e.keyCode === 9)) {
       const suggestion = suggestions[selectedIndex];
       complete(suggestion);
@@ -67,7 +67,9 @@
     selectedIndex = 0;
   }
 
-  function complete(suggestion) {
+  function complete(suggestion: string) {
+    if (!input) return;
+
     const bounds = getCurrentWordBounds(input);
     const inputValue = input.value;
     value =
@@ -78,7 +80,7 @@
     close();
   }
 
-  function updateSelection(dir) {
+  function updateSelection(dir: number) {
     const length = suggestions.length;
     let newIndex = selectedIndex + dir;
 
@@ -134,11 +136,5 @@
 
   .menu.open {
     display: block;
-  }
-
-  /* TODO: Should be read from theme */
-  .menu-item.selected > a {
-    background: #f1f1fc;
-    color: #5755d9;
   }
 </style>
