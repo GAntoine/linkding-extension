@@ -39,6 +39,7 @@
     "contextMenus",
     "notifications",
     "scripting",
-    "activeTab"
+    "activeTab",
+    "bookmarks"
   ]
 }

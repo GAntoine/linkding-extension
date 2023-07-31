@@ -99,6 +99,22 @@
       await clearCachedTabMetadata();
       saveState = "success";
 
+      if (bookmarkId) {
+        const existingBookmarks = await browserAPI.bookmarks.search({ url });
+        if (existingBookmarks[0]) {
+          browserAPI.bookmarks.update(existingBookmarks[0].id, {
+            title,
+            url,
+          });
+        }
+      } else {
+        browserAPI.bookmarks.create({
+          parentId: tags.includes("pinned") ? "1" : "2",
+          title,
+          url,
+        });
+      }
+
       // Update the bookmark ID and title in case the user wants to edit it
       title = newBookmark.title;
       description = newBookmark.description;
@@ -131,6 +147,11 @@
     try {
       await api.deleteBookmark(bookmarkId);
       await clearCachedTabMetadata();
+
+      const existingBookmarks = await browserAPI.bookmarks.search({ url });
+      if (existingBookmarks[0]) {
+        browserAPI.bookmarks.remove(existingBookmarks[0].id);
+      }
 
       bookmarkId = null;
       const tabInfo = await getCurrentTabInfo();

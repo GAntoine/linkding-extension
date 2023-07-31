@@ -20,6 +20,8 @@ export type Tag = {
 
 type ApiOptions = {
   limit?: number;
+  offset?: number;
+  tag?: string;
 };
 
 export class LinkdingApi {
@@ -27,6 +29,31 @@ export class LinkdingApi {
 
   constructor(configuration: Config) {
     this.configuration = configuration;
+  }
+
+  async getBookmarks(options: ApiOptions = {}): Promise<Bookmark[]> {
+    const configuration = this.configuration;
+
+    const limit = options.limit || 100;
+    const offset = options.offset || 0;
+    const tag = options.tag || null;
+
+    let url = `${configuration.baseUrl}/api/bookmarks/?limit=${limit}&offset=${offset}`;
+
+    if (tag) {
+      url += `&tag=${encodeURIComponent(tag)}`;
+    }
+
+    return fetch(url, {
+      headers: {
+        Authorization: `Token ${configuration.token}`,
+      },
+    }).then((response) => {
+      if (response.status === 200) {
+        return response.json().then((body) => body.results);
+      }
+      return Promise.reject(`Error loading bookmarks: ${response.statusText}`);
+    });
   }
 
   async getBookmark(bookmarkId: number): Promise<Bookmark> {

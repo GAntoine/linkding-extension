@@ -5,8 +5,12 @@ import {
   resetStarredBadge,
 } from "./browser";
 import { loadTabMetadata, clearCachedTabMetadata } from "./cache";
-import { getConfiguration, isConfigurationComplete, type Config } from "./configuration";
-import { LinkdingApi } from "./linkding";
+import {
+  getConfiguration,
+  isConfigurationComplete,
+  type Config,
+} from "./configuration";
+import { LinkdingApi, type Bookmark } from "./linkding";
 
 let api: LinkdingApi | null = null;
 let configuration: Config | null = null;
@@ -97,7 +101,10 @@ browserAPI.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
 
 /* Context menu integration */
 
-async function saveToLinkding(info: chrome.contextMenus.OnClickData, tab: chrome.tabs.Tab | undefined) {
+async function saveToLinkding(
+  info: chrome.contextMenus.OnClickData,
+  tab: chrome.tabs.Tab | undefined
+) {
   if (!info.linkUrl) return;
 
   const isReady = await initApi();
@@ -164,7 +171,7 @@ browserAPI.contextMenus.onClicked.addListener(saveToLinkding);
 async function setDymamicBadge(tabId: number) {
   const badgeText = await browserAPI.action.getBadgeText({ tabId });
   const starred = badgeText === "★";
-  
+
   const tab = await browserAPI.tabs.get(tabId);
   if (!tab.url) return;
   const tabMetadata = await loadTabMetadata(tab.url);
@@ -190,3 +197,79 @@ browserAPI.tabs.onUpdated.addListener((tabId) => {
 browserAPI.tabs.onActivated.addListener(({ tabId }) => {
   setDymamicBadge(tabId);
 });
+
+/* Bookmark sync */
+
+initApi().then(async (isReady) => {
+  if (!isReady || !api) return;
+
+  const bookmarkBarSubtree = await chrome.bookmarks.getSubTree("1");
+  const otherBookmarksSubtree = await chrome.bookmarks.getSubTree("2");
+
+  const bookmarkBar = bookmarkBarSubtree[0];
+  const otherBookmarks = otherBookmarksSubtree[0];
+
+  const bookmarks = await api.getBookmarks();
+  bookmarks
+    .filter((bookmark) => bookmark.tag_names.includes("pinned"))
+    .forEach((bookmark) => {
+      // Check if bookmark already exists in Bookmark Bar
+      const existingBookmark = bookmarkBar.children?.find(
+        (b) => b.url === bookmark.url
+      );
+      if (existingBookmark) {
+        return browserAPI.bookmarks.update(existingBookmark.id, {
+          title: bookmark.title,
+        });
+      }
+
+      // Check if it exists in the other folder
+      const existingOtherBookmark = otherBookmarks.children?.find(
+        (b) => b.url === bookmark.url
+      );
+      if (existingOtherBookmark) {
+        return browserAPI.bookmarks.move(existingOtherBookmark.id, {
+          parentId: "2",
+        });
+      }
+
+      // Create bookmark
+      return browserAPI.bookmarks.create({
+        parentId: "1",
+        title: bookmark.title,
+        url: bookmark.url,
+      });
+    });
+
+  bookmarks
+    .filter((bookmark) => !bookmark.tag_names.includes("pinned"))
+    .forEach((bookmark) => {
+      // Check if bookmark already exists in Other Bookmarks
+      const existingBookmark = otherBookmarks.children?.find(
+        (b) => b.url === bookmark.url
+      );
+      if (existingBookmark) {
+        return browserAPI.bookmarks.update(existingBookmark.id, {
+          title: bookmark.title,
+        });
+      }
+
+      // Check if it exists in the bookmark bar
+      const existingBookmarkBarBookmark = bookmarkBar.children?.find(
+        (b) => b.url === bookmark.url
+      );
+      if (existingBookmarkBarBookmark) {
+        return browserAPI.bookmarks.move(existingBookmarkBarBookmark.id, {
+          parentId: "1",
+        });
+      }
+
+      // Create bookmark
+      return browserAPI.bookmarks.create({
+        parentId: "2",
+        title: bookmark.title,
+        url: bookmark.url,
+      });
+    });
+});
+
