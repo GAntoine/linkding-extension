@@ -1,9 +1,8 @@
-import { getBrowser, getCurrentTabInfo, showBadge, removeBadge } from "./browser";
-import { loadTabMetadata } from "./cache";
+import { browserAPI, getCurrentTabInfo, showStarredBadge, removeStarredBadge } from "./browser";
+import { loadTabMetadata, clearCachedTabMetadata } from "./cache";
 import { getConfiguration, isConfigurationComplete } from "./configuration";
 import { LinkdingApi } from "./linkding";
 
-const browser = getBrowser();
 let api = null;
 let configuration = null;
 let hasCompleteConfiguration = false;
@@ -29,24 +28,24 @@ async function initApi() {
 async function setDynamicBadge(tabId, tabMetadata) {
   // Set badge if tab is bookmarked
   if (tabMetadata?.bookmark) {
-    showBadge(tabId);
+    showStarredBadge(tabId);
   } else {
-    removeBadge(tabId);
+    removeStarredBadge(tabId);
   }
 }
 
 /* Omnibox / Search integration */
 
-browser.omnibox.onInputStarted.addListener(async () => {
+browserAPI.omnibox.onInputStarted.addListener(async () => {
   const isReady = await initApi();
   const description = isReady
     ? "Search bookmarks in linkding"
     : "⚠️ Please configure the linkding extension first";
 
-  browser.omnibox.setDefaultSuggestion({ description });
+  browserAPI.omnibox.setDefaultSuggestion({ description });
 });
 
-browser.omnibox.onInputChanged.addListener((text, suggest) => {
+browserAPI.omnibox.onInputChanged.addListener((text, suggest) => {
   if (!api) {
     return;
   }
@@ -65,7 +64,7 @@ browser.omnibox.onInputChanged.addListener((text, suggest) => {
     });
 });
 
-browser.omnibox.onInputEntered.addListener(async (content, disposition) => {
+browserAPI.omnibox.onInputEntered.addListener(async (content, disposition) => {
   if (!hasCompleteConfiguration || !content) {
     return;
   }
@@ -87,26 +86,26 @@ browser.omnibox.onInputEntered.addListener(async (content, disposition) => {
 
   switch (disposition) {
     case "currentTab":
-      browser.tabs.update({ url });
+      browserAPI.tabs.update({ url });
       break;
     case "newForegroundTab":
-      browser.tabs.create({ url });
+      browserAPI.tabs.create({ url });
       break;
     case "newBackgroundTab":
-      browser.tabs.create({ url, active: false });
+      browserAPI.tabs.create({ url, active: false });
       break;
   }
 });
 
 /* Precache bookmark / website metadata when tab or URL changes */
 
-browser.tabs.onActivated.addListener(async (activeInfo) => {
+browserAPI.tabs.onActivated.addListener(async (activeInfo) => {
   const tabInfo = await getCurrentTabInfo();
   let tabMetadata = await loadTabMetadata(tabInfo.url, true);
   setDynamicBadge(activeInfo.tabId, tabMetadata);
 });
 
-browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+browserAPI.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Only interested in URL changes
   // Ignore URL changes in non-active tabs
   if (!changeInfo.url || !tab.active) {
@@ -116,3 +115,65 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   let tabMetadata = await loadTabMetadata(tab.url, true);
   setDynamicBadge(tabId, tabMetadata);
 });
+
+/* Context menu integration */
+
+async function saveToLinkding(info, tab) {
+  const isReady = await initApi();
+  if (!isReady) return;
+
+  const urlMetadata = await loadTabMetadata(info.linkUrl);
+  if (!urlMetadata) return;
+
+  // Check if bookmark already exists
+  if (urlMetadata.bookmark) {
+    browserAPI.notifications.create("linkding-bookmark-exists", {
+      type: "basic",
+      iconUrl: browserAPI.runtime.getURL("/icons/logo_48x48.png"),
+      title: "Linkding",
+      message: `Bookmark already saved`,
+      silent: true, // Prevents notification sound
+    });
+    return;
+  }
+
+  const { description, title, url } = urlMetadata.metadata;
+  const tagNames =
+    api.default_tags
+      ?.split(" ")
+      .map((tag) => tag.trim())
+      .filter((tag) => !!tag) ?? [];
+
+  const bookmark = {
+    url,
+    title: title ?? "",
+    description: description ?? "",
+    tag_names: tagNames,
+  };
+
+  try {
+    await api.saveBookmark(bookmark);
+    await clearCachedTabMetadata();
+
+    browserAPI.notifications.create("linkding-bookmark-saved", {
+      type: "basic",
+      iconUrl: browserAPI.runtime.getURL("/icons/logo_48x48.png"),
+      title: "Linkding",
+      message: `Saved bookmark "${bookmark.title}"`,
+      silent: true, // Prevents notification sound
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Removing all context menu items first is safer to avoid duplicates
+browserAPI.contextMenus.removeAll(() => {
+  browserAPI.contextMenus.create({
+    id: "save-to-linkding",
+    title: "Save bookmark",
+    contexts: ["link"],
+  });
+});
+
+browserAPI.contextMenus.onClicked.addListener(saveToLinkding);

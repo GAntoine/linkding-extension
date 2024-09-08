@@ -1,3 +1,5 @@
+import { browserAPI } from "./browser";
+
 export class LinkdingApi {
   constructor(configuration) {
     this.configuration = configuration;
@@ -45,6 +47,22 @@ export class LinkdingApi {
       } else {
         return Promise.reject(`Request error: ${response.statusText}`);
       }
+    });
+  }
+
+  async deleteBookmark(bookmarkId) {
+    const configuration = this.configuration;
+
+    return fetch(`${configuration.baseUrl}/api/bookmarks/${bookmarkId}/`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Token ${configuration.token}`,
+      },
+    }).then((response) => {
+      if (response.status === 204) {
+        return true;
+      }
+      return Promise.reject(`Error deleting bookmark: ${response.statusText}`);
     });
   }
 
@@ -125,15 +143,29 @@ export class LinkdingApi {
 
   async testConnection() {
     const configuration = this.configuration;
-    return fetch(`${configuration.baseUrl}/api/bookmarks/?limit=1`, {
-      headers: {
-        Authorization: `Token ${configuration.token}`,
-      },
-    })
-      .then((response) =>
-        response.status === 200 ? response.json() : Promise.reject(response)
-      )
-      .then((body) => !!body.results)
-      .catch(() => false);
+
+    // Request permission to access the page that runs Linkding
+    const granted = await browserAPI.permissions.request({
+      origins: [`${configuration.baseUrl}/*`],
+    });
+
+    if (granted) {
+      return fetch(`${configuration.baseUrl}/api/bookmarks/?limit=1`, {
+        headers: {
+          Authorization: `Token ${configuration.token}`,
+        },
+      })
+        .then((response) => {
+          return response.status === 200
+            ? response.json()
+            : Promise.reject(response);
+        })
+        .then((body) => {
+          return !!body.results;
+        })
+        .catch(() => false);
+    } else {
+      return false;
+    }
   }
 }
